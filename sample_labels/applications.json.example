@@ -1,0 +1,17 @@
+{
+  "old_tom_bourbon.jpg": {
+    "expected": {
+      "brand_name": "OLD TOM DISTILLERY",
+      "class_type": "Kentucky Straight Bourbon Whiskey",
+      "alcohol_content": "45% Alc./Vol.",
+      "net_contents": "750 mL",
+      "bottler_name_addr": "Old Tom Distillery, Bardstown, KY",
+      "country_of_origin": null,
+      "government_warning": "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems."
+    },
+    "context": {
+      "is_import": false,
+      "abv_required": true
+    }
+  }
+}
