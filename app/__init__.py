@@ -1,0 +1,1 @@
+"""TTB label compliance proof-of-concept."""
