@@ -29,6 +29,9 @@ Run:
 import json
 import os
 import random
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
