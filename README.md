@@ -4,6 +4,28 @@ A proof-of-concept tool that checks alcohol beverage label images against
 their COLA application data, built around a routing architecture that
 keeps the common case fast without sacrificing accuracy on messy images.
 
+## Design principle: safe automation, not full automation
+
+This tool is deliberately conservative in one specific way, worth stating
+up front rather than leaving implicit: **it will never auto-approve a
+label unless every check can be resolved with real confidence.** Wherever
+a check can't be -- an ambiguous read, a formatting judgment the system
+can't fully verify, an unusual layout -- the result is `flag_for_review`,
+not `approve`. There is no code path that guesses in the direction of
+approval.
+
+In practice, this means the review team's queue will contain a mix of
+genuine violations and labels that are probably fine but couldn't be
+automatically confirmed -- never labels the system silently pushed
+through despite being unsure. The tradeoff is deliberate: some compliant
+labels get flagged unnecessarily (added reviewer workload, low stakes)
+rather than risk a non-compliant label being silently approved
+(unacceptable, regardless of how rarely it might occur). This isn't just
+a stated intention -- several proposed improvements during development
+were tested and rejected specifically because they measurably violated
+this principle, even when they otherwise improved overall accuracy. See
+"Known open items" for a concrete example.
+
 ## How it works
 
 1. **Triage** — a fast, local quality check (blur, brightness, contrast,
@@ -147,3 +169,17 @@ questions are about setup and hosting:
   unconditional rather than occasional -- worth re-timing a full batch
   and watching `ollama ps` before treating current latency numbers as
   representative.
+- Government warning header bold-detection is deterministic (OCR +
+  ink-density measurement, not a model judgment), correct on 5 of 7
+  tracked test cases, and -- more importantly than the raw count --
+  has never been observed to fail in the dangerous direction (a
+  non-compliant label read as compliant). The 2 known failures
+  (tests/test_weight_detection.py, marked xfail) both fail safe: a
+  compliant label gets sent to human review rather than silently
+  approved. Several fixes were tried and deliberately rejected because
+  they traded a safe-direction fix for a dangerous-direction regression
+  on a different case: three bounding-box-tightening strategies (naive
+  min/max, connected-components), and JPEG-compression calibration
+  (tested, ruled out -- no effect on any verdict). Revisit only with an
+  approach verified not to introduce any false-bold result, not just
+  one with a better pass rate.
