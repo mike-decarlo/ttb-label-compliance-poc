@@ -30,7 +30,9 @@ import json
 import os
 import random
 
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
+
+from app.fonts import load_font as _load_font
 
 OUTPUT_DIR = "sample_labels"
 IMAGE_SIZE = (900, 1200)  # portrait, roughly bottle-label proportioned
@@ -204,25 +206,6 @@ def _draw_wrapped(draw, text, font, x, y, max_width, line_height=30):
             line = test_line
     if line:
         draw.text((x, y), line, fill="black", font=font)
-
-
-def _load_font(size, bold=False):
-    """Try common system font paths across platforms; fall back to a
-    scalable default so a missing font file degrades gracefully instead
-    of silently collapsing to an unreadably tiny bitmap font."""
-    candidates = [
-        f"/usr/share/fonts/truetype/dejavu/DejaVuSans{'-Bold' if bold else ''}.ttf",
-        f"/usr/share/fonts/truetype/liberation/LiberationSans-{'Bold' if bold else 'Regular'}.ttf",
-        f"/System/Library/Fonts/Supplemental/Arial{' Bold' if bold else ''}.ttf",  # macOS
-        "C:\\Windows\\Fonts\\arialbd.ttf" if bold else "C:\\Windows\\Fonts\\arial.ttf",  # Windows
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            return ImageFont.truetype(path, size)
-    try:
-        return ImageFont.load_default(size=size)  # Pillow >= 10.1
-    except TypeError:
-        return ImageFont.load_default()
 
 
 def _draw_warning(draw, text, style, y):
