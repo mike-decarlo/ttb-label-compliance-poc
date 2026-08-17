@@ -176,16 +176,24 @@ questions are about setup and hosting:
   and watching `ollama ps` before treating current latency numbers as
   representative.
 - Government warning header bold-detection is deterministic (OCR +
-  ink-density measurement, not a model judgment), correct on 5 of 7
-  tracked test cases, and -- more importantly than the raw count --
-  has never been observed to fail in the dangerous direction (a
-  non-compliant label read as compliant). The 2 known failures
-  (tests/test_weight_detection.py, marked xfail) both fail safe: a
-  compliant label gets sent to human review rather than silently
-  approved. Several fixes were tried and deliberately rejected because
-  they traded a safe-direction fix for a dangerous-direction regression
-  on a different case: three bounding-box-tightening strategies (naive
-  min/max, connected-components), and JPEG-compression calibration
-  (tested, ruled out -- no effect on any verdict). Revisit only with an
-  approach verified not to introduce any false-bold result, not just
-  one with a better pass rate.
+  ink-density measurement, not a model judgment) and reliable on the
+  fast path: every clean-image test case, bold and non-bold alike,
+  resolves correctly, every run. On the careful path (blurred images),
+  it correctly identifies a genuinely NON-bold header, but currently
+  fails to confirm a genuinely bold one most of the time -- root cause
+  is a measurement bias, not a localization failure: OCR reliably finds
+  the header even under blur, but blurred real ink measures less dense
+  than the pristine, unblurred calibration references, regardless of
+  true font weight. 4 known cases are marked `xfail` in
+  `tests/test_weight_detection.py`.
+
+  This does not compromise the tool's core safety guarantee: across
+  every variant tested during development -- the shipped method, three
+  alternative bounding-box refinements, blur-matched calibration,
+  same-image body-text comparison, and same-image brand-name comparison
+  -- every single observed failure has been in the safe direction (a
+  compliant label sent to review) with zero exceptions in the shipped
+  code. The two variants that did produce a dangerous-direction result
+  (a non-compliant label reading as compliant) were tested and rejected
+  before ever being adopted. Revisit only with an approach verified,
+  the same way, to never produce a false-bold result.
