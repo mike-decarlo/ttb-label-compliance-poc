@@ -32,11 +32,18 @@ class LLMBackend(Protocol):
         """Send a prompt plus an image, return the raw response text."""
         ...
 
+    def read_document_text(self, image_path: str) -> str:
+        """Read raw text from a document image, using whatever strategy
+        this backend has available for it."""
+        ...
+
 
 class OllamaBackend:
-    def __init__(self, fast_model: str = "qwen2.5:14b", vision_model: str = "qwen2.5vl:7b"):
+    def __init__(self, fast_model: str = "qwen2.5:14b", vision_model: str = "qwen2.5vl:7b",
+                 ocr_model: str = "glm-ocr"):
         self.fast_model = fast_model
         self.vision_model = vision_model
+        self.ocr_model = ocr_model
 
     def complete_text(self, prompt: str) -> str:
         response = ollama.chat(
@@ -55,6 +62,35 @@ class OllamaBackend:
             options=MODEL_OPTIONS,
         )
         return response["message"]["content"]
+
+    def read_document_text(self, image_path: str) -> str:
+        """
+        Reads raw text using GLM-OCR, a small OCR-specialist model --
+        confirmed more reliable than a general vision-model prompt on
+        messy/degraded label images (correct core-field extraction
+        across all 5 messy test images during development). GLM-OCR has
+        been observed emitting its full transcription twice back-to-back
+        in a single response; _dedupe_repeated_text handles that.
+        """
+        response = ollama.chat(
+            model=self.ocr_model,
+            messages=[{"role": "user", "content": "Extract all text from this document image.",
+                       "images": [image_path]}],
+            options={"temperature": 0},
+        )
+        return _dedupe_repeated_text(response["message"]["content"])
+
+
+def _dedupe_repeated_text(text: str) -> str:
+    """GLM-OCR-specific quirk: finds where the first line repeats again
+    later in the text and truncates there, rather than depending on a
+    token cap tuned to any particular document's length."""
+    text = text.strip()
+    first_line = text.split("\n")[0]
+    if not first_line:
+        return text
+    second_occurrence = text.find(first_line, len(first_line))
+    return text[:second_occurrence].strip() if second_occurrence != -1 else text
 
 
 class GeminiBackend:
@@ -95,6 +131,19 @@ class GeminiBackend:
             config=types.GenerateContentConfig(temperature=0),
         )
         return response.text
+
+    def read_document_text(self, image_path: str) -> str:
+        """
+        No GLM-OCR equivalent on the hosted path -- falls back to asking
+        the vision model to transcribe the document directly. UNTESTED:
+        we have real evidence GLM-OCR reads messy images well; we have
+        none yet on whether this fallback performs comparably. Treat
+        this as a functional default, not a validated one, until it's
+        actually been checked.
+        """
+        return self.complete_vision(
+            "Extract all text from this document image, verbatim.", image_path
+        )
 
 
 @lru_cache(maxsize=1)

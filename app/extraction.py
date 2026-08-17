@@ -20,12 +20,13 @@ which backend is active.
 """
 
 import json
+import os
 import re
 
 import pytesseract
 from PIL import Image
 
-from app.llm_backend import get_backend
+from app.llm_backend import OllamaBackend, get_backend
 from app.weight_detection import classify_header_bold
 
 FIELD_NAMES = (
@@ -120,11 +121,29 @@ def fast_extract(image_path: str) -> dict:
 
 def careful_extract(image_path: str) -> dict:
     """
-    Messy images skip OCR entirely -- the active backend's vision call
-    reads the image directly for the core fields. Header info is
-    delegated to check_warning_header(), same as fast_extract().
+    Reads raw text from the image, then parses it the same way
+    fast_extract() does -- differing only in HOW the text is read.
+    Normally delegates entirely to the active backend's
+    read_document_text() (GLM-OCR on Ollama, confirmed reliable on messy
+    images; a direct vision-read fallback on a hosted backend with no
+    GLM-OCR equivalent -- see llm_backend.py). This function doesn't
+    need to know which backend is active or how it reads text.
+
+    Set OCR_ENGINE=glmocr to force GLM-OCR regardless of which backend
+    is handling field-parsing -- e.g. GLM-OCR reading + a hosted backend
+    parsing, to test the reading step independently of the parsing model.
+
+    Header info is delegated to check_warning_header(), unrelated to and
+    unaffected by any of this -- header bold-ness is measured
+    deterministically, not by any model (see weight_detection.py); this
+    was tested separately with GLM-OCR too and found not to work.
     """
-    response_text = get_backend().complete_vision(FIELD_SCHEMA_CORE, image_path)
+    if os.environ.get("OCR_ENGINE", "auto").lower() == "glmocr":
+        raw_text = OllamaBackend().read_document_text(image_path)
+    else:
+        raw_text = get_backend().read_document_text(image_path)
+
+    response_text = get_backend().complete_text(f"{FIELD_SCHEMA_CORE}\n\nLabel text:\n{raw_text}")
     fields = _safe_json_parse(response_text)
     fields.update(check_warning_header(image_path))
     return fields

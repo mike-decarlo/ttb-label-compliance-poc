@@ -102,3 +102,61 @@ def test_safe_json_parse_handles_clean_json_unchanged():
     clean = '{"brand_name": "TEST BRAND"}'
     result = _safe_json_parse(clean)
     assert result.get("brand_name") == "TEST BRAND"
+
+
+def test_careful_extract_brand_name_on_messy_compliant_label():
+    """Now that GLM-OCR handles messy-image text reading, this should
+    resolve correctly rather than being routed to the vision model's
+    direct read -- confirmed across all 5 messy test images during
+    development."""
+    path = _skip_if_missing("old_tom_bourbon_messy.jpg")
+    fields = careful_extract(path)
+    assert fields["brand_name"] is not None
+    assert "OLD TOM" in fields["brand_name"].upper()
+
+
+def test_careful_extract_delegates_to_backend_read_document_text(monkeypatch):
+    """Default (OCR_ENGINE unset) should call get_backend().read_document_text()
+    and nothing else -- extraction.py shouldn't know which engine that
+    resolves to."""
+    import app.extraction as extraction_module
+    monkeypatch.delenv("OCR_ENGINE", raising=False)
+
+    class FakeBackend:
+        def read_document_text(self, image_path):
+            return "FAKE RAW TEXT"
+        def complete_text(self, prompt):
+            assert "FAKE RAW TEXT" in prompt
+            return '{"brand_name": "FROM BACKEND"}'
+        def complete_vision(self, prompt, image_path):
+            return "{}"
+
+    monkeypatch.setattr(extraction_module, "get_backend", lambda: FakeBackend())
+    result = extraction_module.careful_extract("sample_labels/old_tom_bourbon_messy.jpg")
+    assert result.get("brand_name") == "FROM BACKEND"
+
+
+def test_careful_extract_ocr_engine_glmocr_forces_ollama_regardless_of_backend(monkeypatch):
+    """OCR_ENGINE=glmocr should force GLM-OCR reading even when the
+    active backend (for parsing) is something else entirely."""
+    import app.extraction as extraction_module
+    monkeypatch.setenv("OCR_ENGINE", "glmocr")
+
+    class FakeOllamaBackend:
+        def read_document_text(self, image_path):
+            return "FORCED GLMOCR TEXT"
+
+    class FakeActiveBackend:
+        def complete_text(self, prompt):
+            assert "FORCED GLMOCR TEXT" in prompt
+            return '{"brand_name": "FROM FORCED PATH"}'
+        def complete_vision(self, prompt, image_path):
+            return "{}"
+        def read_document_text(self, image_path):
+            raise AssertionError("must not be called when OCR_ENGINE=glmocr overrides it")
+
+    monkeypatch.setattr(extraction_module, "OllamaBackend", lambda: FakeOllamaBackend())
+    monkeypatch.setattr(extraction_module, "get_backend", lambda: FakeActiveBackend())
+
+    result = extraction_module.careful_extract("sample_labels/old_tom_bourbon_messy.jpg")
+    assert result.get("brand_name") == "FROM FORCED PATH"

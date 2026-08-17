@@ -48,3 +48,25 @@ def test_gemini_backend_requires_api_key(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     with pytest.raises(KeyError):
         get_backend()
+
+
+def test_ollama_backend_has_read_document_text_method():
+    assert hasattr(OllamaBackend(), "read_document_text")
+
+
+def test_dedupe_repeated_text_removes_second_copy():
+    from app.llm_backend import _dedupe_repeated_text
+    doubled = "BRAND NAME\nSome text here.\nBRAND NAME\nSome text here."
+    assert _dedupe_repeated_text(doubled) == "BRAND NAME\nSome text here."
+
+
+def test_dedupe_repeated_text_leaves_single_copy_unchanged():
+    from app.llm_backend import _dedupe_repeated_text
+    single = "BRAND NAME\nSome text here."
+    assert _dedupe_repeated_text(single) == single
+
+
+def test_gemini_backend_has_read_document_text_method(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-key-for-attribute-check")
+    from app.llm_backend import GeminiBackend
+    assert hasattr(GeminiBackend(), "read_document_text")

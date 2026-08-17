@@ -30,16 +30,20 @@ this principle, even when they otherwise improved overall accuracy. See
 
 1. **Triage** — a fast, local quality check (blur, brightness, contrast,
    resolution) decides whether a submission is "clean" or "messy."
-2. **Extraction** — clean labels go through OCR followed by local LLM
-   parsing into structured fields (fast path); messy labels skip OCR and
-   are read directly by a local vision-capable model (careful path). Both
-   paths also make a second, narrow vision call to read the government
-   warning's header text verbatim and judge whether it's bold -- OCR text
-   alone can't answer either question reliably (case gets normalized
-   away, and font weight isn't a character at all), so this runs on every
-   submission, not just messy ones. Extraction runs deterministically
-   (fixed temperature and seed), so repeated runs on the same image
-   produce identical results.
+2. **Extraction** — both paths now follow the same OCR-then-parse
+   pattern, differing only in which OCR engine reads the text: clean
+   labels use Tesseract (fast path); messy labels use GLM-OCR, a small
+   OCR-specialist model confirmed more reliable than Tesseract on
+   degraded images (careful path, local/Ollama backend only -- falls
+   back to a direct vision read on a hosted backend, since GLM-OCR has
+   no hosted equivalent). Both paths also make a second, narrow vision
+   call to read the government warning's header text verbatim -- OCR
+   text alone can't answer case-sensitivity reliably (case gets
+   normalized away in plain OCR text). Header bold-ness is judged
+   separately and deterministically (see weight_detection.py below),
+   not by any model. Extraction runs deterministically (fixed
+   temperature and seed), so repeated runs on the same image produce
+   identical results.
 3. **Validation** — both paths feed into a shared, SQLite-backed rule set
    covering the 7 required TTB label fields, plus two dedicated checks on
    the government warning header: its wording/casing (compared as literal
@@ -61,6 +65,7 @@ pip install -r requirements.txt
 python scripts/init_db.py
 ollama pull qwen2.5:14b
 ollama pull qwen2.5vl:7b
+ollama pull glm-ocr
 pytest
 ```
 
@@ -104,15 +109,27 @@ and a hosted deployment later without touching extraction logic. The
 default, local backend runs through [Ollama](https://ollama.com) — no
 external API, no API key:
 
-- `qwen2.5:14b` — parses OCR text into structured fields (fast path)
-- `qwen2.5vl:7b` — reads label images directly: full extraction on the
-  careful path, plus a second, narrow header check on every fast-path
-  submission too (the header's exact wording/casing and its bold-ness --
-  every submission now uses this model at least once, not only messy
-  ones). The header's wording and casing are transcribed as literal text
-  and compared with a deterministic, case-sensitive exact match -- only
-  bold-ness remains a model judgment, since font weight can't be
-  represented as extracted text.
+- `qwen2.5:14b` — parses OCR text into structured fields, for both the
+  fast path (Tesseract-read text) and the careful path (GLM-OCR-read
+  text)
+- `glm-ocr` — a 0.9B-parameter OCR specialist; reads raw text from
+  messy/degraded label images on the careful path (local/Ollama backend
+  only). Confirmed via testing to read these images more reliably than
+  Tesseract, which has sometimes failed to find any text at all near the
+  header on a heavily degraded image. Set `OCR_ENGINE=glmocr` to force
+  GLM-OCR regardless of which backend is handling field-parsing — 
+  independent of `LLM_BACKEND`, so it's possible to test GLM-OCR's
+  reading quality against any parsing backend, not only the local one.
+- `qwen2.5vl:7b` — used narrowly now: a small vision call on every
+  submission (fast and careful alike) to read the government warning
+  header's exact wording/casing, compared with a deterministic,
+  case-sensitive text match. It is no longer used for full-image field
+  extraction on the careful path. Header bold-ness is NOT a model
+  judgment at all -- it's measured deterministically (see
+  weight_detection.py). This was tested directly with GLM-OCR too (a
+  markdown-based bold-annotation prompt) and found not to work: the
+  model doesn't apply formatting annotations regardless of image
+  quality, confirmed on a sharp, unambiguous control image.
 
 Ollama must be running locally (`ollama serve`, or the desktop app)
 before the app runs. Once the models are pulled, inference happens
@@ -177,16 +194,17 @@ deployment targets is a config change, not a code change:
   it's bold. Wording match on the warning *body* (not the header) is
   case/whitespace-normalized rather than requiring byte-exact model
   output. Covered by `tests/test_validation.py`.
-- Extraction (`extraction.py`) — deterministic sampling. The warning
-  body and its header are extracted separately: the body is parsed
-  normally by whichever path handles the submission, while the header's
-  verbatim text is read via a dedicated vision call and its bold-ness is
-  measured deterministically (see weight_detection.py below) — neither
-  is reliably derivable from OCR text alone. Model calls go through a
-  swappable backend (`app/llm_backend.py`, `LLM_BACKEND` env var) rather
-  than calling Ollama directly, so a hosted backend can be added for
-  public deployment without touching this file. Covered by
-  `tests/test_extraction.py` and `tests/test_llm_backend.py`.
+- Extraction (`extraction.py`) — deterministic sampling. Both paths use
+  the same OCR-then-parse pattern (Tesseract for clean images, GLM-OCR
+  for messy ones — confirmed more reliable than Tesseract there), with
+  field-parsing going through the swappable backend
+  (`app/llm_backend.py`, `LLM_BACKEND` env var). GLM-OCR is local/Ollama
+  only; the careful path falls back to a direct vision read on a hosted
+  backend. The warning header's verbatim text is read via a dedicated
+  vision call; its bold-ness is measured deterministically (see
+  weight_detection.py below) — neither is reliably derivable from plain
+  OCR text. Covered by `tests/test_extraction.py` and
+  `tests/test_llm_backend.py`.
 - Batch orchestration (`batch.py`) — concurrency is configurable via
   `--max-workers` rather than hardcoded, so a future hosted deployment
   can retune it for its actual hardware.

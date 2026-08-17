@@ -37,7 +37,16 @@ def main():
                          help="Concurrent worker count for batch processing (default: 8).")
     parser.add_argument("--no-persist", action="store_true",
                          help="Skip saving results to results/results.db.")
+    parser.add_argument("--ocr-engine", choices=["auto", "glmocr"], default=None,
+                         help="Override which engine reads messy-image text on the careful "
+                              "path. 'glmocr' forces GLM-OCR regardless of LLM_BACKEND -- "
+                              "useful for testing GLM-OCR against a hosted parsing backend. "
+                              "Default: whatever OCR_ENGINE is set to in .env, or each "
+                              "backend's own default if unset.")
     args = parser.parse_args()
+
+    if args.ocr_engine is not None:
+        os.environ["OCR_ENGINE"] = args.ocr_engine
 
     applications = load_applications(args.applications)
 
