@@ -24,8 +24,8 @@ def test_exact_match_passes_on_identical_text(rules):
 def test_exact_match_tolerates_case_difference(rules):
     """
     Wording match is case/whitespace-insensitive by design -- the
-    all-caps/bold *formatting* requirement is checked separately by
-    government_warning_formatting_ok, not by this field's wording match.
+    all-caps/bold *formatting* requirement is checked separately 
+    not by this field's wording match.
     """
     rule = rules["government_warning"]
     result = validate_field(
