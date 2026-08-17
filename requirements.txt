@@ -1,6 +1,7 @@
-opencv-python
-pytesseract
-Pillow
-rapidfuzz
-pytest
+numpy
 ollama
+opencv-python
+Pillow
+pytesseract
+pytest
+rapidfuzz
