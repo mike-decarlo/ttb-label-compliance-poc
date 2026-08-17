@@ -26,6 +26,14 @@ st.caption(
     "compliance against the 7 required TTB fields."
 )
 
+if os.environ.get("LLM_BACKEND", "ollama").lower() != "ollama":
+    st.info(
+        "🔒 This demo uses a hosted AI model. Under its free tier, "
+        "uploaded content may be used by the provider to improve their "
+        "products. Please don't upload real or sensitive label data here "
+        "-- synthetic test labels only."
+    )
+
 uploaded_image = st.file_uploader("Label image", type=["jpg", "jpeg", "png"])
 
 st.subheader("Expected application data")
