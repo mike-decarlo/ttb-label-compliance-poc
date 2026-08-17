@@ -250,6 +250,14 @@ def degrade(img: Image.Image) -> Image.Image:
 
 
 def generate_all():
+    # Fixed seed: degrade() uses random rotation/blur/glare with no seed
+    # anywhere, so every run previously produced DIFFERENT images under
+    # the SAME filenames -- silently invalidating any tuning, debugging,
+    # or test expectations built against a prior run. This is almost
+    # certainly what made today's results diverge sharply from last
+    # session's despite no changes to the detection logic itself.
+    random.seed(42)
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     applications = {}
 
