@@ -97,8 +97,12 @@ python scripts/view_results.py --limit 20
 
 ## AI models
 
-Both extraction steps run locally through [Ollama](https://ollama.com) —
-no external API, no API key:
+Both extraction steps run through a swappable backend
+(`app/llm_backend.py`, selected via the `LLM_BACKEND` env var — defaults
+to `ollama`), so the same codebase supports this local dev setup today
+and a hosted deployment later without touching extraction logic. The
+default, local backend runs through [Ollama](https://ollama.com) — no
+external API, no API key:
 
 - `qwen2.5:14b` — parses OCR text into structured fields (fast path)
 - `qwen2.5vl:7b` — reads label images directly: full extraction on the
@@ -119,7 +123,10 @@ entirely on-device — no outbound network calls at runtime.
 This version runs as a public-facing app, but because inference is
 already local by design (see above), adapting it for TTB's internal
 network isn't really a firewall workaround anymore — the remaining
-questions are about setup and hosting:
+questions are about setup and hosting. Extraction now runs through a
+swappable backend (`app/llm_backend.py`) rather than calling Ollama
+directly, so switching between local and hosted inference for different
+deployment targets is a config change, not a code change:
 
 1. **Model weight distribution** — pulling model weights from Ollama's
    public registry needs internet access once, at setup time. Behind a
@@ -154,8 +161,13 @@ questions are about setup and hosting:
 - Extraction (`extraction.py`) — deterministic sampling. The warning
   body and its header are extracted separately: the body is parsed
   normally by whichever path handles the submission, while the header's
-  verbatim text/casing and bold-ness are always answered by a dedicated
-  vision call, since neither is reliably derivable from OCR text.
+  verbatim text is read via a dedicated vision call and its bold-ness is
+  measured deterministically (see weight_detection.py below) — neither
+  is reliably derivable from OCR text alone. Model calls go through a
+  swappable backend (`app/llm_backend.py`, `LLM_BACKEND` env var) rather
+  than calling Ollama directly, so a hosted backend can be added for
+  public deployment without touching this file. Covered by
+  `tests/test_extraction.py` and `tests/test_llm_backend.py`.
 - Batch orchestration (`batch.py`) — concurrency is configurable via
   `--max-workers` rather than hardcoded, so a future hosted deployment
   can retune it for its actual hardware.

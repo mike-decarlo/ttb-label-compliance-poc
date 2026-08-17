@@ -70,3 +70,16 @@ def test_check_warning_header_bold_is_deterministic_type():
     path = _skip_if_missing("old_tom_bourbon_clean.jpg")
     result = check_warning_header(path)
     assert result["government_warning_header_bold"] in (True, False, None)
+
+
+def test_fast_extract_preserves_numbered_warning_markers():
+    """Regression guard: FIELD_SCHEMA_CORE must instruct the model to
+    include '(1)' and '(2)' in government_warning. A prior version of
+    this prompt omitted that instruction, causing the markers to be
+    silently dropped from extracted text -- caught via redbridge's
+    output, not by any test at the time."""
+    path = _skip_if_missing("redbridge_rum_abv_mismatch_clean.jpg")
+    fields = fast_extract(path)
+    warning = fields.get("government_warning") or ""
+    assert "(1)" in warning
+    assert "(2)" in warning
