@@ -152,10 +152,6 @@ questions are about setup and hosting:
   including route and quality signals.
 
 **Known open items:**
-- Occasional dropped/fused word spacing in extracted text (e.g.
-  "todrive") observed on the vision path. The prompt now asks the model
-  not to do this, but that's a mitigation, not a guarantee.
-- No test coverage yet for `extraction.py` or `batch.py` themselves.
 - Results aren't persisted anywhere — each run's output exists only in
   the terminal or an `--output` JSON file, with no historical record.
 - No frontend yet — `main.py` is a CLI, not the simple, low-tech-comfort
