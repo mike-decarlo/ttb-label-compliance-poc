@@ -71,7 +71,7 @@ class GeminiBackend:
     needs its own look before this backend is used for real batches.
     """
 
-    def __init__(self, model: str = "gemini-2.5-flash"):
+    def __init__(self, model: str = "gemini-3.6-flash"):
         # Imported here, not at module level, so local-only dev never
         # needs google-genai installed unless this backend is selected.
         from google import genai

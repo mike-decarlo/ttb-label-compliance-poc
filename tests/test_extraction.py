@@ -83,3 +83,22 @@ def test_fast_extract_preserves_numbered_warning_markers():
     warning = fields.get("government_warning") or ""
     assert "(1)" in warning
     assert "(2)" in warning
+
+
+def test_safe_json_parse_strips_markdown_fences():
+    """Regression guard: Gemini's vision calls have been observed
+    wrapping JSON output in ```json ... ``` even when explicitly asked
+    for ONLY a JSON object -- confirmed live, not hypothetical. Without
+    stripping, this fallback (all fields None) would silently blank out
+    every field on every submission."""
+    from app.extraction import _safe_json_parse
+    fenced = '```json\n{"brand_name": "TEST BRAND"}\n```'
+    result = _safe_json_parse(fenced)
+    assert result.get("brand_name") == "TEST BRAND"
+
+
+def test_safe_json_parse_handles_clean_json_unchanged():
+    from app.extraction import _safe_json_parse
+    clean = '{"brand_name": "TEST BRAND"}'
+    result = _safe_json_parse(clean)
+    assert result.get("brand_name") == "TEST BRAND"

@@ -11,9 +11,12 @@ import os
 import tempfile
 
 import streamlit as st
+from dotenv import load_dotenv
 
 from app.batch import process_single_application
 from app.storage import save_result
+
+load_dotenv()
 
 st.set_page_config(page_title="TTB Label Compliance Check", page_icon="🏷️")
 

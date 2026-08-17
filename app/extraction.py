@@ -20,6 +20,7 @@ which backend is active.
 """
 
 import json
+import re
 
 import pytesseract
 from PIL import Image
@@ -68,10 +69,21 @@ JSON object with this exact key:
 
 
 def _safe_json_parse(text: str) -> dict:
+    """
+    Parses a model's JSON response. Strips a leading/trailing markdown
+    code fence first -- confirmed live: Gemini's vision calls have wrapped
+    output in ```json ... ``` even when the prompt explicitly asks for
+    ONLY a JSON object, while its own text calls (and Ollama's
+    format="json") have not shown this. Rather than assume it's specific
+    to one backend or call type, strip unconditionally as a safe
+    normalization step -- a no-op on text that's already clean JSON.
+    """
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
     try:
-        return json.loads(text)
+        return json.loads(cleaned)
     except json.JSONDecodeError:
-        # Model didn't return clean JSON -- fail safe rather than crash the batch.
+        # Still not valid JSON after stripping -- fail safe rather than
+        # crash the batch.
         return {k: None for k in FIELD_NAMES}
 
 

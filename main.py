@@ -11,9 +11,13 @@ import argparse
 import json
 import os
 
+from dotenv import load_dotenv
+
 from app.batch import process_batch, process_single_application
 from app.reporting import to_plain_text
 from app.storage import save_result
+
+load_dotenv()
 
 
 def load_applications(path: str) -> dict:

@@ -118,6 +118,25 @@ Ollama must be running locally (`ollama serve`, or the desktop app)
 before the app runs. Once the models are pulled, inference happens
 entirely on-device — no outbound network calls at runtime.
 
+## Running the Streamlit app
+
+```bash
+streamlit run app.py
+```
+
+By default this uses the local Ollama backend (see "AI models" and
+"Setup" above) — no data leaves your machine. To use the hosted Gemini
+backend instead, set `LLM_BACKEND=gemini` and `GEMINI_API_KEY` in `.env`
+(see `.env.example`).
+
+**Privacy note:** Google's Gemini free tier may use submitted content to
+improve its products; a paid tier does not. If that's a concern —
+testing with real or sensitive label data, for example — use the local
+Ollama backend instead, which never sends anything outside your machine.
+That's the default with no extra configuration: just complete the
+"Setup" steps above (Ollama install + model pulls) and run the app —
+no API key, no `.env` changes required.
+
 ## Deployment considerations for a TTB-internal version
 
 This version runs as a public-facing app, but because inference is
