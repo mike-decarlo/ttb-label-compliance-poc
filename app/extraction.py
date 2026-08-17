@@ -138,7 +138,7 @@ def careful_extract(image_path: str) -> dict:
     deterministically, not by any model (see weight_detection.py); this
     was tested separately with GLM-OCR too and found not to work.
     """
-    if os.environ.get("OCR_ENGINE", "auto").lower() == "glmocr":
+    if (os.environ.get("OCR_ENGINE") or "").strip().lower() == "glmocr":
         raw_text = OllamaBackend().read_document_text(image_path)
     else:
         raw_text = get_backend().read_document_text(image_path)
