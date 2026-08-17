@@ -114,12 +114,13 @@ external API, no API key:
   text)
 - `glm-ocr` — a 0.9B-parameter OCR specialist; reads raw text from
   messy/degraded label images on the careful path (local/Ollama backend
-  only). Confirmed via testing to read these images more reliably than
-  Tesseract, which has sometimes failed to find any text at all near the
-  header on a heavily degraded image. Set `OCR_ENGINE=glmocr` to force
-  GLM-OCR regardless of which backend is handling field-parsing — 
-  independent of `LLM_BACKEND`, so it's possible to test GLM-OCR's
-  reading quality against any parsing backend, not only the local one.
+  only). Confirmed reliable across all 5 tracked messy test cases for
+  the 7 core fields, at a fraction of the size of the vision model
+  previously used for this step (0.9B params vs. 6GB) -- a genuine
+  efficiency win, though not a confirmed accuracy improvement, since the
+  vision model's direct read was already largely reliable on these same
+  fields; the header/bold mechanism this doesn't touch was always the
+  actual weak point.
 - `qwen2.5vl:7b` — used narrowly now: a small vision call on every
   submission (fast and careful alike) to read the government warning
   header's exact wording/casing, compared with a deterministic,
