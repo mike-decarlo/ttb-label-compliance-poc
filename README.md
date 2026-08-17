@@ -47,7 +47,9 @@ this principle, even when they otherwise improved overall accuracy. See
    model self-report) and whether it's bold (the one piece that genuinely
    can't be reduced to text, so it stays a model judgment).
 4. **Reporting** — results come back as a plain-language explanation per
-   field, not a bare pass/fail.
+   field, not a bare pass/fail, and are persisted to `results/results.db`
+   by default so a run's output survives after the terminal closes (see
+   "Results history" below).
 
 ## Setup
 
@@ -83,6 +85,15 @@ Options:
 - `--applications` — JSON file mapping filenames to expected fields + context
 - `--output` — write results to a JSON file instead of printing to the terminal
 - `--max-workers` — concurrent batch workers (default: 8); tune for your GPU/CPU
+
+## Results history
+
+Every run of `main.py` saves its results by default (pass `--no-persist`
+to skip). View past results without re-running anything:
+
+```bash
+python scripts/view_results.py --limit 20
+```
 
 ## AI models
 
@@ -152,10 +163,9 @@ questions are about setup and hosting:
   including route and quality signals.
 
 **Known open items:**
-- Results aren't persisted anywhere — each run's output exists only in
-  the terminal or an `--output` JSON file, with no historical record.
-- No frontend yet — `main.py` is a CLI, not the simple, low-tech-comfort
-  interface the actual end users need.
+- No frontend yet — deferred to the planned Streamlit app (see
+  "Deployment considerations" above), which will serve as the actual
+  end-user interface; `main.py` remains a CLI for development/testing.
 - Public deployment (Streamlit + a free hosted LLM API, since the
   current local-Ollama design can't run on Streamlit Community Cloud's
   free tier) is planned but not started.

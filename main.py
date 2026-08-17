@@ -13,6 +13,7 @@ import os
 
 from app.batch import process_batch, process_single_application
 from app.reporting import to_plain_text
+from app.storage import save_result
 
 
 def load_applications(path: str) -> dict:
@@ -30,6 +31,8 @@ def main():
                          help="Optional path to write a JSON report instead of printing.")
     parser.add_argument("--max-workers", type=int, default=8,
                          help="Concurrent worker count for batch processing (default: 8).")
+    parser.add_argument("--no-persist", action="store_true",
+                         help="Skip saving results to results/results.db.")
     args = parser.parse_args()
 
     applications = load_applications(args.applications)
@@ -63,10 +66,15 @@ def main():
         except Exception as e:  # noqa: BLE001
             results = [{"label": args.labels, "overall": "error", "reason": str(e)}]
 
+    if not args.no_persist:
+        for r in results:
+            save_result(r)
+
     if args.output:
         with open(args.output, "w") as f:
             json.dump(results, f, indent=2)
         print(f"Wrote {len(results)} result(s) to {args.output}")
+        
     else:
         for r in results:
             print(f"\n=== {r.get('label', '?')} ===")
